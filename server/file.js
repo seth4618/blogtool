@@ -82,7 +82,7 @@ function ReplacedFile(ff)
 }
 
 ReplacedFile.GeneralMap = {
-	'posts': function(rf) { return 'hi'; }
+	'posts': function(rf) { return Post.formatAll(); }
 };
 
 /**
