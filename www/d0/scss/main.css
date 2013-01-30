@@ -1,3 +1,7 @@
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 #pagetitle {
     width: 100%;
     text-align: center;
@@ -7,14 +11,26 @@
     margin-top: 2px;
 }
 
+.post {
+    max-width: 4in;
+}
+
 .post-title {
-    
+    margin-top: 5px;
+    font-size: 125%;
+    color: #0000AE;
 }
 
 .post-date {
+    display: inline;
+    color: #3A00AE;
+    font-size: 75%;
 }
 
 .post-cat {
+    display: inline;
+    color: #575757;
+    font-size: 75%;
 }
 
 .post-content {
