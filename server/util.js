@@ -105,12 +105,12 @@ Util.showStack = function(msg)
 
 
 /**
- * $assert
+ * assert
  *
  * @param {*} x					assertion to evalute. if true, do nothing
  * @param {!string=} msg		msg to output if x is false
  */
-function $assert(x, msg) {
+Util.assert = function(x, msg) {
     if (!!x) return;
     msg = msg ? msg : 'failed assert with no message';
     msg = 'FAILED ASSERT: ' + msg;
