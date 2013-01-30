@@ -4,7 +4,8 @@ Util = require("./util.js");
 url = require("url");
 FileServer = require("./file.js");
 var server;
-BASEPATH = "/home/seth/blog/blogtool/www/";
+BASEPATH = "/home/seth/blog/blogtool/www";
+Synchronizer = require("./sync.js");
 
 try {
     /** @type {!http.Server} */ server = http.createServer(onRequest);
