@@ -56,6 +56,19 @@ FileFragment.prototype.start = function()
 }
 
 /**
+ * process
+ * process a filefragment in the context of this response object
+ *
+ * @param {!Responder} response
+ * @param {!function(!ReplacedFile)} cb
+ **/
+FileFragment.prototype.process = function(response, cb)
+{
+	var file = new ReplacedFile(this);
+	file.process(response, cb);
+}
+
+/**
  * ReplacedFile
  * an instance of FileFrament with slots to be filled in
  *
@@ -67,6 +80,34 @@ function ReplacedFile(ff)
 	this.base = ff;
 	this.vals = [];
 }
+
+ReplacedFile.GeneralMap = {
+	'posts': function(rf) { return 'hi'; }
+};
+
+/**
+ * process
+ * generic replacement function for a .php file
+ *
+ * @param {!Responder} response
+ * @param {!function(!ReplacedFile)} cb
+ **/
+ReplacedFile.prototype.process = function(response, cb)
+{
+	this.response = response;
+	var me = this;
+	this.sync = new Synchronizer(function() { cb(me); }, 1, "rf");
+	for (key in this.base.map) {
+		Util.info('key is '+key);
+		if (key in ReplacedFile.GeneralMap) {
+			var pf = ReplacedFile.GeneralMap[key];
+			this.replace(key, pf(this));
+		} else {
+			this.replace(key, 'undefined-'+key);
+		}
+	}
+	this.sync.done(1, "init");
+};
 
 ReplacedFile.prototype.replace = function(key, val)
 {
@@ -128,49 +169,42 @@ function FileServer(path, cache) {
 
 /**
  * read
- * read a file from the file system
+ * read a file from the file system.  Reads from the root.  Assumes file exists
  *
  * @private
- * @param {!string} pathname	relative to root of server
+ * @param {!string} path	absolute
  * @param {function(boolean, !string, !string)} cb
  **/
-FileServer.read = function(pathname, cb)
+FileServer.read = function(path, cb)
 {
-    var path = BASEPATH + pathname;
-    Path.exists(path, function checkexists(exists) {  
-	    if(!exists) {  
-		cb(false, '', '');
-		return;
-	    }
-	    fs.readFile(path, "binary", function zz2(err, file) {  
-		    if(err) {  
-				Util.error(pathname+" exists, but error on reading:"+err);
-				cb(false, '', '');
-				return;
-		    }  
+	fs.readFile(path, "binary", function zz2(err, file) {  
+		if(err) {  
+			Util.error(path+" might not exist?:"+err);
+			cb(false, '', '');
+			return;
+		}  
    
-		    // compute content type
-		    var dot = path.lastIndexOf(".");
-		    var ext;
-		    if (dot > 0) {
+		// compute content type
+		var dot = path.lastIndexOf(".");
+		var ext;
+		if (dot > 0) {
 			ext = path.substr(dot+1);
-		    }
-		    var ct = "text/html";
-		    if (ext == "js") {
+		}
+		var ct = "text/html";
+		if (ext == "js") {
 			ct = "application/javascript";
-		    } else if (ext == "css") {
+		} else if (ext == "css") {
 			ct = "text/css";
-		    } else if (ext == "ico") {
+		} else if (ext == "ico") {
 			ct = "image/x-icon";
-		    } else if (ext == "jpg") {
+		} else if (ext == "jpg") {
 			ct = "image/jpg";
-		    } else if (ext == "png") {
+		} else if (ext == "png") {
 			ct = "image/png";
-		    } else if (ext == "gif") {
+		} else if (ext == "gif") {
 			ct = "image/gif";
-		    } 
-		    cb(true, file, ct);
-		});
+		} 
+		cb(true, file, ct);
 	});
 };
 
@@ -233,21 +267,82 @@ FileServer.get = function(pathname, cb)
 
 /**
  * serve
- * serve a file
+ * serve a file.  Build in rule to get index.html if a directory
  *
  * @param {!string} pathname	relative to root of server
  * @param {!Responder} response
  **/
 FileServer.serve = function(pathname, response)
 {
-	FileServer.get(pathname, 
-				   function closure_file_127(exists, content, ct) {
-					   if(!exists) {  
-						   response.err(404, pathname+" does not exist");
-						   return;  
-					   }
-					   response.binary(content, ct);
-				   });
+    pathname = BASEPATH + pathname;
+	FileServer.checkPath(pathname, function(mapto) {
+		if (mapto == null) {
+			response.err(404, pathname+" does not exist");
+		} else {
+			if (mapto.substr(-4) == ".php") {
+				FileServer.getPieces(mapto, 
+									 function(exists, content, ct) {
+										 if (!exists) throw new Error('How could I get here for '+pathname);
+										 content.process(response, function(file) {
+											 response.binary(file.asString(), ct);
+										 });
+									 });
+			} else {
+				FileServer.get(mapto, 
+							   function (exists, content, ct) {
+								   if (!exists) throw new Error('How could I get here for '+pathname);
+								   response.binary(content, ct);
+							   });
+			}
+		}
+	});
+};
+
+/** @type {Object.<!string,string>} */ FileServer.statCache = {};
+
+/**
+ * checkPath
+ * check to see if path exists.  
+ *	If a file, use that name
+ *	if a directory:
+ *	   add index.php and recheck, if succeed, done
+ *	   add index.html and recheck, if succeed, done
+ *	   else fail
+ *
+ * @private
+ * @param {!string} pathname
+ * @param {!function(string)} cb
+ **/
+FileServer.checkPath = function(pathname, cb)
+{
+	Util.info('checking '+pathname);
+	if (pathname in FileServer.statCache) {
+		cb(FileServer.statCache[pathname]);
+		return;
+	}
+	fs.stat(pathname, function (err, stats) {
+		if (err) {
+			FileServer.statCache[pathname] = null;
+			cb(null);
+			return;
+		}
+		if (stats.isDirectory()) {
+			FileServer.checkPath(pathname+"index.php", function(newname) {
+				if (newname == null) {
+					FileServer.checkPath(pathname+"index.html", function(newname) {
+						FileServer.statCache[pathname] = newname;
+						cb(newname);
+					});
+					return;
+				}
+				FileServer.statCache[pathname] = newname;
+				cb(newname);
+			});
+			return;
+		}
+		FileServer.statCache[pathname] = pathname;
+		cb(pathname);
+	});
 };
 
 /**
@@ -270,6 +365,8 @@ FileServer.watchdog = function()
 		//SKIP Util.info("  "+FileServer.stats[path]+"\t\t"+path);
 		FileServer.stats[path] = 0;
 	}
+	// just zap cache and restart to make sure we get up to date info
+	FileServer.statCache = {};
 };
 
 /**
@@ -336,7 +433,7 @@ FileServer.prototype.cacheit = function()
 
     // get mtime, then decide if we really need to read
 
-    fs.stat(BASEPATH + this.path, 
+    fs.stat(this.path, 
 			function statret(err, stats) {
 				if (err) {
 					Util.error('failed to stat '+me.path);
