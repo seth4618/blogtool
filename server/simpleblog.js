@@ -6,6 +6,7 @@ FileServer = require("./file.js");
 var server;
 BASEPATH = "/home/seth/blog/blogtool/www";
 Synchronizer = require("./sync.js");
+Post = require('./post.js');
 
 try {
     /** @type {!http.Server} */ server = http.createServer(onRequest);
