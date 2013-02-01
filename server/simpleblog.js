@@ -8,6 +8,10 @@ BASEPATH = "/home/seth/blog/blogtool/www";
 Synchronizer = require("./sync.js");
 Post = require('./post.js');
 
+// set up replacements
+FileServer.setReplacementKey('posts', {func: function(rf) { return Post.formatAll(); }, sync: 1});
+FileServer.setReplacementKey('post', {func: Post.formatPost, sync: 0});
+
 try {
     /** @type {!http.Server} */ server = http.createServer(onRequest);
 } catch (err) {
@@ -289,6 +293,9 @@ Router.route = function(pathname, response, request)
 	Util.error('Not implemented yet');
 	response.err(404, "no req handler for "+pathname);
 	return;
+    } else if (action == 'post') {
+	Util.req(pathname);
+	FileServer.serve('/post.php', response);
     } else if (Router.serveFiles) {
 	// this is a standard call to return a file name
 	Util.req(pathname);
