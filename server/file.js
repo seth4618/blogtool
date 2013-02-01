@@ -81,9 +81,7 @@ function ReplacedFile(ff)
 	this.vals = [];
 }
 
-ReplacedFile.GeneralMap = {
-	'posts': function(rf) { return Post.formatAll(); }
-};
+ReplacedFile.GeneralMap = {};
 
 /**
  * process
@@ -100,8 +98,12 @@ ReplacedFile.prototype.process = function(response, cb)
 	for (key in this.base.map) {
 		Util.info('key is '+key);
 		if (key in ReplacedFile.GeneralMap) {
-			var pf = ReplacedFile.GeneralMap[key];
-			this.replace(key, pf(this));
+			var pf = ReplacedFile.GeneralMap[key].func;
+			if (ReplacedFile.GeneralMap[key].sync) {
+				this.replace(key, pf(this));
+			} else {
+				this.generateReplacement(key, pf);
+			}
 		} else {
 			this.replace(key, 'undefined-'+key);
 		}
@@ -109,10 +111,21 @@ ReplacedFile.prototype.process = function(response, cb)
 	this.sync.done(1, "init");
 };
 
+ReplacedFile.prototype.generateReplacement = function(key, func)
+{
+	var me = this;
+	me.sync.wait(1);
+	var ok = func(me, function(str) { me.replace(key, str); me.sync.done(1); });
+	if (ok) return;
+	/// there was an error, we should return a 404
+	me.replace(key, "??");
+	me.sync.done(1);
+};
+
 ReplacedFile.prototype.replace = function(key, val)
 {
 	this.vals.push([key, val]);
-}
+};
 
 ReplacedFile.prototype.asString = function()
 {
@@ -419,6 +432,11 @@ FileServer.initFileCache = function(files, cb)
 		}
 	}
 	setTimeout(checkfiles, 200);
+};
+
+FileServer.setReplacementKey = function(key, data)
+{
+	ReplacedFile.GeneralMap[key] = data;
 };
 
 /**
