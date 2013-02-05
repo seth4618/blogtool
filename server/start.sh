@@ -1,4 +1,29 @@
 #!/bin/sh
+prog=$0
+verbose=0
+nosleep=0
+while [ "$#" -gt "0" ]
+do
+    if [ ${1#-} == $1 ]; then
+	break;
+    fi
+    opt=$1
+    case $opt in 
+	--fast)
+	    nosleep=1;
+	    shift;
+	    ;;
+	-v)
+	    verbose=1
+	    ;;
+	*)
+	    echo "Unknown option: $opt"
+	    echo "--fast"
+	    echo "-v: verbose"
+	    exit;
+	    ;;
+    esac
+done
 
 as=`ps -ef | grep node | grep author | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
 ws=`ps -ef | grep node | grep simple | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
@@ -16,12 +41,12 @@ else
   kill $ws
 fi
 nohup node ./author.js > ../logs/author.log 2>&1 &
-sleep 3
+if [ $nosleep == 0 ]; then sleep 3; fi
 as=`ps -ef | grep node | grep author | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
 echo "---------- author $as"
 tail -10 ../logs/author.log
 nohup node ./simpleblog.js > ../logs/sb.log 2>&1 &
-sleep 3
+if [ $nosleep == 0 ]; then sleep 3; fi
 ws=`ps -ef | grep node | grep simple | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
 echo "---------- simpleblog $ws"
 tail -10 ../logs/sb.log
