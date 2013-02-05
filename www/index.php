@@ -10,5 +10,6 @@
 <body>
 <div id="pagetitle">Seth's blog</div>
 {posts}
+{ga}
 </body>
 </html>
