@@ -7,5 +7,6 @@
 <body>
 <div id="pagetitle"><a href="/">Seth's blog</a></div>
 {post}
+{ga}
 </body>
 </html>
