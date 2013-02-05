@@ -3,6 +3,9 @@
 // assume Synchronizer has been required
 var fs = require("fs");
 
+pagedown = require("pagedown");
+converter = new pagedown.Converter();
+
 function Post(fname)
 {
     this.name = fname;
@@ -36,7 +39,7 @@ Post.url2post = {};
  * @return {!boolean}
  **/
 Post.formatPost = function(rf, cb) {
-    var url = rf.response.origin;
+    var url = rf.response.origin.toLowerCase();
     if (!(url in Post.url2post)) {
 	return false;
     }
@@ -159,7 +162,7 @@ Post.prototype.parse = function(ok, content)
     }
     // clean up title so it can be used as part of a file path
     var orig = url;
-    url = url.replace(/[\]\[!@#$%^&*():;'"><?\/\\`~{}|., ]/g, "-");
+    url = url.replace(/[\]\[!@#$%^&*():;'"><?\/\\`~{}|., ]/g, "-").toLowerCase();
     // create full url from date and title
     url = [ '/post',
 	    this.date.getFullYear(),
@@ -189,37 +192,76 @@ Post.prototype.parse = function(ok, content)
     var last = len-1;
     var i = 0;
 
-    // first, any seq of indented lines becomse code
-    while (i<len) {
-	// skip repeated blank only lines
-	while ( (/^[ \t]*$/.test(original[i])) &&
-		(i < last) &&
-		(/^[ \t]*$/.test(original[i+1]))) i = i+1;
+    if (0) {
+	// first, any seq of indented lines becomes code
+	while (i<len) {
+	    // skip repeated blank only lines
+	    while ( (/^[ \t]*$/.test(original[i])) &&
+		    (i < last) &&
+		    (/^[ \t]*$/.test(original[i+1]))) i = i+1;
 
-	if (/^[ \t]*$/.test(original[i])) {
-	    if ((i<last) && /^[ \t]/.test(original[i+1])) {
-		// start of code block
+	    if (/^[ \t]*$/.test(original[i])) {
+		if ((i<last) && /^[ \t]/.test(original[i+1])) {
+		    // start of code block
+		    synopsis.push('<tt>read post for code</tt>');
+		    body.push('<p><pre>\n');
+		    i++;
+		    while ((i<len) && !/^[^ \t\n]/.test(original[i])) {
+			body.push(original[i]);
+			i++;
+		    }
+		    body.push('</pre>\n<p>\n');
+		    i--;
+		} else {
+		    body.push('\n<p>\n');
+		}
+	    } else if (/^\'\'\'[ \t]*/.test(original[i])) {
+		// new style code blocks surrounded by ''' at start of line
 		synopsis.push('<tt>read post for code</tt>');
 		body.push('<p><pre>\n');
-		i++;
-		while ((i<len) && !/^[^ \t\n]/.test(original[i])) {
+		i++;		// skip opening '''
+		while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
 		    body.push(original[i]);
 		    i++;
 		}
 		body.push('</pre>\n<p>\n');
-		i--;
 	    } else {
-		body.push('\n<p>\n');
+		body.push(original[i]);
+		synopsis.push(original[i]);
 	    }
-	} else {
-	    body.push(original[i]);
-	    synopsis.push(original[i]);
+	    i++;
 	}
-	i++;
+    } else {
+	// lets try out using markdown with the pagedown module implementation
+	while (i<len) {
+	    // skip repeated blank only lines
+	    while ( (/^[ \t]*$/.test(original[i])) &&
+		    (i < last) &&
+		    (/^[ \t]*$/.test(original[i+1]))) i = i+1;
+	    if (/^\'\'\'[ \t]*/.test(original[i])) {
+		synopsis.push('`read post for code`');
+		body.push('\n');
+		i++;		// skip opening '''
+		while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
+		    body.push('    '+original[i]); // so markdown will turn it into code
+		    i++;
+		}
+		body.push('\n');
+	    } else {
+		body.push(original[i]);
+		synopsis.push(original[i]);
+	    }
+	    i++;
+	}
     }
     this.body = body.join('\n');
     if (synopsis.length > 7) synopsis.slice(7, synopsis.length-7);
     this.synopsis = synopsis.join('\n');
+    if (1) {
+	// finally, run through markdown processor
+	this.body = converter.makeHtml(this.body);
+	this.synopsis = converter.makeHtml(this.synopsis);
+    }
 };
 
 /**
