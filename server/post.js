@@ -10,8 +10,11 @@ function Post(fname)
 {
     this.name = fname;
     Post.all[fname] = this;
+    Util.info("Creating post from "+fname);
     var me = this;
-    FileServer.get(Post.basepath+fname, function(ok, content, ct) { me.parse(ok, content); });
+    FileServer.get(Post.basepath+fname, 
+		   function(ok, content, ct) { 
+		       me.parse(ok, content); });
     Post.sorted = [];
 }
 
@@ -24,7 +27,7 @@ Post.Format = {
 /** @type {!string} */ Post.basepath = "/home/seth/blog/entries/";
 /** @type {number} */ Post.intervalId;
 /** @type {number} 
- *  @const */ Post.watchdogSeconds = 60;
+ *  @const */ Post.watchdogSeconds = 30;
 
 Post.sorted = [];
 Post.all = {};
@@ -74,7 +77,55 @@ Post.formatAll = function() {
     return result.join('\n\n');
 };
 
-Post.watchdog = function() {
+/**
+ * setCachingInfo
+ *
+ * record mtime of file.  until DB is in action we will use mtime to
+ * decide if we should reload post
+ *
+ * @private
+ **/
+Post.prototype.setCachingInfo = function()
+{
+    var me = this;
+    fs.stat(Post.basepath+this.name, function (err, stats) {
+	if (err) 
+	    throw new Error("just loaded post "+me.name+" and couldn't stat: "+err);
+	me.mtime = stats.mtime;
+    });
+};
+
+Post.prototype.checkReload = function(removals, sync)
+{
+    var me = this;
+    sync.wait(1);
+    fs.stat(Post.basepath+this.name, function (err, stats) {
+	if (err) {
+	    // this post must have gone away
+	    console.log('%s generated stat error %s', me.name, err);
+	    removals.push(me);
+	} else if (me.mtime.getTime() != stats.mtime.getTime()) {
+	    // this post was modified
+	    console.log('%s has update %s < %s', me.name, me.mtime, stats.mtime);
+	    removals.push(me);
+	}
+	sync.done(1);
+    });
+};
+
+Post.toRemove = [];
+Post.watchdogPhase2 = function()
+{
+    // first remove all bad (or old) posts, 
+    var i;
+    var len = Post.toRemove.length;
+    for (i=0; i<len; i++) {
+	var p = Post.toRemove[i];
+	p.remove();
+    }
+    Post.toRemove = [];
+
+    // now check for new (or updated) posts
     fs.readdir(Post.basepath, function(err, files) {
 	if (err) {
 	    Util.error('Failed in post watchdog:'+err);
@@ -86,9 +137,21 @@ Post.watchdog = function() {
 	    var name = files[i];
 	    if (/^\./.test(name)) continue;
 	    if (name in Post.all) continue;
-	    new Post(name);
+	    var p = new Post(name);
+	    p.setCachingInfo();
 	}
     });
+};
+
+Post.watchdog = function() {
+    Post.toRemove = [];
+    var sync = new Synchronizer(Post.watchdogPhase2, 1, "wr");
+
+    for (var name in Post.all) {
+	var p = Post.all[name];
+	p.checkReload(Post.toRemove, sync);
+    }
+    sync.done(1);
 };
 
 /**
@@ -151,7 +214,7 @@ Post.prototype.parse = function(ok, content)
     this.date = new Date(text[1]);
     text = content.match(/\nTitle: *(.*?) *\n/);
     this.title = text[1];
-    console.log('\n%j', text);
+    //console.log('\n%j', text);
     var url = this.title;
     text = content.match(/\nCategories: *(.*?) *\n/);
     this.categories = text[1].split(/ *, */);
@@ -181,7 +244,8 @@ Post.prototype.parse = function(ok, content)
     }
     this.url = url;
     Post.url2post[url] = this;
-    console.log('[%s] -> [%s] %s', orig, url, this.title);
+    Util.info("Loading "+this.title+" from "+this.name);
+    //console.log('[%s] -> [%s] %s', orig, url, this.title);
 
     // do some processing on body
     
@@ -248,8 +312,8 @@ Post.prototype.parse = function(ok, content)
 		}
 		body.push('\n');
 	    } else {
-		body.push(original[i]);
-		synopsis.push(original[i]);
+		body.push(original[i]);	
+	synopsis.push(original[i]);
 	    }
 	    i++;
 	}
@@ -262,6 +326,25 @@ Post.prototype.parse = function(ok, content)
 	this.body = converter.makeHtml(this.body);
 	this.synopsis = converter.makeHtml(this.synopsis);
     }
+};
+
+/**
+ * remove
+ * remove from system and all dictionaries
+ *
+ **/
+Post.prototype.remove = function()
+{
+    Util.info('Removing post from '+this.name);
+    delete Post.all[this.name];
+    Post.sorted = [];
+    delete Post.url2post[this.url];
+    // delete all fields so if we missed a ref we will see it soon as an error
+    delete this.categories;
+    delete this.body;
+    delete this.title;
+    delete this.synopsis;
+    delete this.date;
 };
 
 /**
