@@ -108,3 +108,7 @@
 
 (add-to-list 'auto-mode-alist '("/blog/entries/" . blog-mode))
 
+
+(autoload 'markdown-mode "markdown-mode"
+   "Major mode for editing Markdown files" t)
+(add-to-list 'auto-mode-alist '("\\.text\\'" . markdown-mode))
