@@ -18,12 +18,13 @@ body {
 
 
 .post {
-    max-width: 5in;
+    max-width: 5.5in;
 }
 
 .post-title {
+    font-weight: bold;
     margin-top: 5px;
-    font-size: 125%;
+    font-size: 1.6em;
     color: #0000AE;
     text-decoration:none;
 }
@@ -37,7 +38,6 @@ body {
     text-decoration:underline;
     color: #0000AE;
 }
-
 
 .post-date {
     display: inline;
