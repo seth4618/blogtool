@@ -16,10 +16,14 @@ var analyticsCode;
 // set up replacements
 FileServer.setReplacementKey('posts', {func: function(rf) { return Post.formatAll(); }, sync: 1});
 FileServer.setReplacementKey('post', {func: Post.formatPost, sync: 0});
+FileServer.setReplacementKey('cats', {func: Post.formatCats, sync: 1});
 FileServer.setReplacementKey('ga', {func: function(rf) { return analyticsCode; }, sync: 1});
 
 // init the analytics code
 analyticsCode = ['<script type="text/javascript">var _gaq = _gaq || [];  _gaq.push([\'_setAccount\', \'', Config.getString('gacode'), '\']);  _gaq.push([\'_trackPageview\']);  (function() {    var ga = document.createElement(\'script\'); ga.type = \'text/javascript\'; ga.async = true;    ga.src = (\'https:\' == document.location.protocol ? \'https://ssl\' : \'http://www\') + \'.google-analytics.com/ga.js\';    var s = document.getElementsByTagName(\'script\')[0]; s.parentNode.insertBefore(ga, s);  })();\n</script>'].join('');
+
+// init the fileserver
+FileServer.initFileCache([BASEPATH+'/index.php']);
 
 try {
     /** @type {!http.Server} */ server = http.createServer(onRequest);
@@ -315,3 +319,8 @@ Router.route = function(pathname, response, request)
 	response.err(404, "Illegal request to object not found");
     }
 };
+
+// Local Variables:
+// tab-width: 4
+// indent-tabs-mode: nil
+// End:
