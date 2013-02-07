@@ -198,3 +198,8 @@ AuthorLink.commands['nop'] = AuthorLink.prototype.doNothing;
 AuthorLink.commands['publish'] = AuthorLink.prototype.publish;
 
 startUp();
+
+// Local Variables:
+// tab-width: 4
+// indent-tabs-mode: nil
+// End:
