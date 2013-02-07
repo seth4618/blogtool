@@ -72,6 +72,12 @@ a.read-more:link {color:#3A00AE;}      /* unvisited link */
 a.read-more:hover {color:#0000AE;}  /* mouse over link */
 a.read-more:active {color:#0000AE;}  /* selected link */
 
+a.catlink { text-decoration:none;}
+a.catlink:link {color:#575757;}      /* unvisited link */
+.catlink:visited {color:#3A00AE;}  /* visited link */
+a.catlink:hover {color:#0000AE;}  /* mouse over link */
+a.catlink:active {color:#0000AE;}  /* selected link */
+
 .cats {
     background: #A9A9F5;
 }
