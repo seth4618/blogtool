@@ -311,6 +311,7 @@ FileServer.serve = function(pathname, response)
     });
 };
 
+/** @type {Object.<!string,string>} */ FileServer.mapCache = {};
 /** @type {Object.<!string,string>} */ FileServer.statCache = {};
 
 /**
@@ -329,13 +330,13 @@ FileServer.serve = function(pathname, response)
 FileServer.checkPath = function(pathname, cb)
 {
     Util.info('checking '+pathname);
-    if (pathname in FileServer.statCache) {
-        cb(FileServer.statCache[pathname]);
+    if (pathname in FileServer.mapCache) {
+        cb(FileServer.mapCache[pathname]);
         return;
     }
     fs.stat(pathname, function (err, stats) {
         if (err) {
-            FileServer.statCache[pathname] = null;
+            FileServer.mapCache[pathname] = null;
             cb(null);
             return;
         }
@@ -343,18 +344,49 @@ FileServer.checkPath = function(pathname, cb)
             FileServer.checkPath(pathname+"index.php", function(newname) {
                 if (newname == null) {
                     FileServer.checkPath(pathname+"index.html", function(newname) {
-                        FileServer.statCache[pathname] = newname;
+                        FileServer.mapCache[pathname] = newname;
                         cb(newname);
                     });
                     return;
                 }
-                FileServer.statCache[pathname] = newname;
+                FileServer.mapCache[pathname] = newname;
                 cb(newname);
             });
             return;
         }
-        FileServer.statCache[pathname] = pathname;
+        FileServer.mapCache[pathname] = pathname;
         cb(pathname);
+    });
+};
+
+/**
+ * checkServerPath
+ * check to see if path exists - relative to server root
+ *  If a file, cb(1)
+ *  if a directory, cb(2)
+ *  else cb(0)
+ *
+ * @param {!string} pathname
+ * @param {!function(number)} cb
+ **/
+FileServer.checkServerPath = function(pathname, cb)
+{
+    Util.info('checking '+pathname);
+    if (pathname in FileServer.statCache) {
+        cb(FileServer.statCache[pathname]);
+        return;
+    }
+    fs.stat(BASEPATH+pathname, function (err, stats) {
+        if (err) {
+            FileServer.statCache[pathname] = 0;
+            cb(0);
+            return;
+        }
+        if (stats.isDirectory()) {
+            cb(2);
+        } else {
+            cb(1);
+        }
     });
 };
 
@@ -379,6 +411,7 @@ FileServer.watchdog = function()
         FileServer.stats[path] = 0;
     }
     // just zap cache and restart to make sure we get up to date info
+    FileServer.mapCache = {};
     FileServer.statCache = {};
 };
 
