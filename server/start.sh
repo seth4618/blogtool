@@ -2,6 +2,7 @@
 prog=$0
 verbose=0
 nosleep=0
+here=0
 while [ "$#" -gt "0" ]
 do
     if [ ${1#-} == $1 ]; then
@@ -9,6 +10,11 @@ do
     fi
     opt=$1
     case $opt in 
+	--here)
+	    here=1;
+	    nosleep=1;
+	    shift;
+	    ;;
 	--fast)
 	    nosleep=1;
 	    shift;
@@ -45,7 +51,11 @@ if [ $nosleep == 0 ]; then sleep 3; fi
 as=`ps -ef | grep node | grep author | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
 echo "---------- author $as"
 tail -10 ../logs/author.log
-nohup node ./simpleblog.js > ../logs/sb.log 2>&1 &
+if [ $here == 1 ]; then
+    node ./simpleblog.js
+else
+    nohup node ./simpleblog.js > ../logs/sb.log 2>&1 &
+fi
 if [ $nosleep == 0 ]; then sleep 3; fi
 ws=`ps -ef | grep node | grep simple | sed -re 's/[^0-9]*([0-9]+).*/\1/'`
 echo "---------- simpleblog $ws"
