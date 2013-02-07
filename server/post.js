@@ -8,6 +8,8 @@ converter = new pagedown.Converter();
 
 function Post(fname)
 {
+    this.id = Post.id++;
+    Post.id2post[this.id] = this;
     this.name = fname;
     Post.all[fname] = this;
     Util.info("Creating post from "+fname);
@@ -18,6 +20,12 @@ function Post(fname)
     Post.sorted = [];
 }
 
+/** @typedef {number} */ Post.ID;
+
+/**
+ * @enum {number}
+ * @const
+ */
 Post.Format = {
     Default: 0,
     Synopsis: 1,
@@ -26,12 +34,27 @@ Post.Format = {
 
 /** @type {!string} */ Post.basepath = "/home/seth/blog/entries/";
 /** @type {number} */ Post.intervalId;
-/** @type {number} 
- *  @const */ Post.watchdogSeconds = 30;
+/** 
+ * @type {number} 
+ * @const 
+ */ 
+Post.watchdogSeconds = 30;
 
+/** @type {number} */ Post.id = 0;
 Post.sorted = [];
 Post.all = {};
+/** @type {Object.<!Post.ID,!Post>} */ Post.id2post = {};
 Post.url2post = {};
+/** @type {Object.<!string,!Array.<!Post.ID>} */ Post.cat2post = {};
+
+/** @type {!string} */ Post.prototype.name;
+/** @type {!Post.ID} */ Post.prototype.id;
+/** @type {!Array.<!string>} */ Post.prototype.categories;
+/** @type {!string} */ Post.prototype.body;
+/** @type {!Date} */ Post.prototype.date;
+/** @type {!string} */ Post.prototype.title;
+/** @type {!string} */ Post.prototype.url;
+/** @type {!string} */ Post.prototype.synopsis;
 
 /**
  * formatPost
@@ -49,6 +72,21 @@ Post.formatPost = function(rf, cb) {
     var str = Post.url2post[url].format(Post.Format.Default);
     cb(str);
     return true;
+};
+
+Post.formatCats = function()
+{
+    var ret = ['<ul>' ];
+    var names = [];
+    for (name in Post.cat2post) names.push(name);
+    names.sort();
+    var len = names.length;
+    var i;
+    for (i=0; i<len; i++) {
+	ret.push(['<li>', names[i], '(', Post.cat2post[names[i]].length, ')</li>'].join(''));
+    }
+    ret.push('</ul>\n');
+    return ret.join('\n');
 };
 
 /**
@@ -75,6 +113,19 @@ Post.formatAll = function() {
 	result.push(Post.sorted[i].format(Post.Format.Synopsis|Post.Format.TitleLink));
     }
     return result.join('\n\n');
+};
+
+/**
+ * get
+ * loopup post by id
+ *
+ * @param {!Post.ID} id
+ * @param {!function(Post)} cb
+ **/
+Post.get = function(id, cb)
+{
+    if (id in Post.id2post) cb(Post.id2post[id]);
+    else cb(null);
 };
 
 /**
@@ -135,7 +186,7 @@ Post.watchdogPhase2 = function()
 	var len = files.length;
 	for (i=0; i<len; i++) {
 	    var name = files[i];
-	    if (/^\./.test(name)) continue;
+	    if (/^[.#]/.test(name)) continue;
 	    if (name in Post.all) continue;
 	    var p = new Post(name);
 	    p.setCachingInfo();
@@ -190,8 +241,17 @@ Post.prototype.cleanupCategories = function()
 	if (cat == '') continue;
 	cats.push(cat.charAt(0).toUpperCase() + cat.slice(1));
     }
-    if (cats.length == 0) cats = [ 'Everything' ];
+    if (cats.length == 0) {
+	cats = [ 'Everything' ];
+    }
     this.categories = cats;
+    // now track cat2post
+    len = cats.length;
+    for (i=0; i<len; i++) {
+	var cat = cats[i];
+	if (!(cat in Post.cat2post)) Post.cat2post[cat] = [];
+	Post.cat2post[cat].push(this.id);
+    }
 };
 
 Post.prototype.parse = function(ok, content)  
@@ -339,6 +399,23 @@ Post.prototype.remove = function()
     delete Post.all[this.name];
     Post.sorted = [];
     delete Post.url2post[this.url];
+    delete Post.id2post[this.id];
+
+    // remove from category all lists
+    var len = this.categories.length;
+    var i;
+    for (i=0; i<len; i++) {
+	var cat = this.categories[i];
+	var list = Post.cat2post[cat];
+	var ll = list.length;
+	var j;
+	for (j=0; j<ll; j++) {
+	    if (list[j] == this.id) {
+		list.splice(j,1); // remove it
+		break;
+	    }
+	}
+    }
     // delete all fields so if we missed a ref we will see it soon as an error
     delete this.categories;
     delete this.body;
@@ -412,3 +489,8 @@ Post.watchdog();
 
 // Finally, get watchdog started
 Post.startWatchdog();
+
+// Local Variables:
+// tab-width: 4
+// indent-tabs-mode: nil
+// End:
