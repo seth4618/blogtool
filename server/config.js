@@ -178,3 +178,8 @@ Configure.init = function(filepath, checkfor){
 };
 
 module.exports = Configure;
+
+// Local Variables:
+// tab-width: 4
+// indent-tabs-mode: nil
+// End:
