@@ -17,6 +17,7 @@ var analyticsCode;
 FileServer.setReplacementKey('posts', {func: function(rf) { return Post.formatAll(); }, sync: 1});
 FileServer.setReplacementKey('post', {func: Post.formatPost, sync: 0});
 FileServer.setReplacementKey('cats', {func: Post.formatCats, sync: 1});
+FileServer.setReplacementKey('postsbycat', {func: Post.formatAllInCat, sync: 0});
 FileServer.setReplacementKey('ga', {func: function(rf) { return analyticsCode; }, sync: 1});
 
 // init the analytics code
@@ -29,19 +30,6 @@ try {
     /** @type {!http.Server} */ server = http.createServer(onRequest);
 } catch (err) {
     Util.error("Will Die!!!  Failed to create server instance: "+err);
-    Util.exit(-1);
-}
-
-try {
-    server.listen(port, function () { 
-        Util.info("Listening called on listen to "+port);
-    });
-} catch (err) {
-    if (err.code == "EADDRINUSE") {
-        Util.error("Can't start server on port = "+port);
-    } else {
-        Util.error("tried to start port and failed: "+err);
-    }
     Util.exit(-1);
 }
 
@@ -275,8 +263,6 @@ Responder.prototype.sendP3P = function()
     this.response.setHeader('P3P', 'CP="NOI DSP COR DEV PSA PSD IVA IVD OUR BUS UNI COM NAV INT CNT STA"');
 };
 
-
-
 /**
  * Router
  * routes requests to the proper handler
@@ -285,7 +271,25 @@ Responder.prototype.sendP3P = function()
  **/
 function Router() {}
 
-/** @type {boolean} */ Router.serveFiles = true;
+/** @type {number} */ Router.len;
+/** @type {Array.<!RegExp>} */ Router.routes = [];
+/** @type {Array.<!function(!string,!Responder,!function(string))>} */ Router.funcs = [];
+
+Router.init = function()
+{
+    var routedefs = require('./routing.js');
+    var len = routedefs.length;
+    var i;
+    for (i=0; i<len; i++) {
+	var def = routedefs[i];
+	for (key in def) {
+	    Router.routes[i] = new RegExp(key);
+	    Router.funcs[i] = def[key];
+	}
+	console.log('Adding Route: %s', key);
+    }
+    Router.len = len;
+}
 
 /**
  * route
@@ -297,28 +301,33 @@ function Router() {}
  **/
 Router.route = function(pathname, response, request) 
 {
-    var args = pathname.split('/');
-    args.shift();
-    var action = args.shift(); 	// action
-
-    if (action === 'a') {
-	// this is a node call from the front end
-	Util.error('Not implemented yet');
-	response.err(404, "no req handler for "+pathname);
-	return;
-    } else if (action == 'post') {
-	Util.req(pathname);
-	FileServer.serve('/post.php', response);
-    } else if (Router.serveFiles) {
-	// this is a standard call to return a file name
-	Util.req(pathname);
-	FileServer.serve(pathname, response);
-    } else {
-	// not an action and this router doesn't handle files names
-	Util.req(pathname);
-	response.err(404, "Illegal request to object not found");
+    Util.req(pathname);
+    for (i=0; i<Router.len; i++) {
+	if (Router.routes[i].test(pathname)) {
+	    Router.funcs[i](pathname, response, function(newpath) {
+		if (newpath != null) Router.route(newpath, response, request);
+	    });
+	    break;
+	}
     }
 };
+
+// get routes loaded
+Router.init();
+
+// Don't start listening til we have defined routes
+try {
+    server.listen(port, function () { 
+        Util.info("Listening called on listen to "+port);
+    });
+} catch (err) {
+    if (err.code == "EADDRINUSE") {
+        Util.error("Can't start server on port = "+port);
+    } else {
+        Util.error("tried to start port and failed: "+err);
+    }
+    Util.exit(-1);
+}
 
 // Local Variables:
 // tab-width: 4
