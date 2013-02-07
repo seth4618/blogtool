@@ -83,7 +83,7 @@ Post.formatCats = function()
     var len = names.length;
     var i;
     for (i=0; i<len; i++) {
-	ret.push(['<li>', names[i], '(', Post.cat2post[names[i]].length, ')</li>'].join(''));
+	ret.push(['<li><a class="catlink" href="/cat/', names[i], '">', names[i], '</a>&nbsp;&nbsp;(', Post.cat2post[names[i]].length, ')</li>'].join(''));
     }
     ret.push('</ul>\n');
     return ret.join('\n');
@@ -434,8 +434,19 @@ Post.prototype.remove = function()
  **/
 Post.prototype.format = function(modifiers)
 {
-    var cats = '';
-    if (this.categories.length > 0) cats = '['+this.categories.join(",")+"]";
+    var cats = [ '' ];
+    if (this.categories.length > 0) {
+	cats = [];
+	var i;
+	var len = this.categories.length;
+	var comma = '[';
+	for (i=0; i<len; i++) {
+	    cats.push([ comma, '<a class="catlink" href="/cat/',this.categories[i],'">', this.categories[i],'</a>'].join(''));
+	    comma = ",";
+	}
+	cats.push(']');
+	cats = cats.join('');
+    }
     var date = [1+this.date.getMonth(), '/', 
 		this.date.getDate(), '/',
 		this.date.getFullYear()-2000, ' ',
@@ -489,6 +500,36 @@ Post.watchdog();
 
 // Finally, get watchdog started
 Post.startWatchdog();
+
+/**
+ * formatPost
+ * format synopisis of all posts in a cat
+ *
+ * @param {!ReplacedFile} rf
+ * @param {!function(!string)} cb
+ * @return {!boolean}
+ **/
+Post.formatAllInCat = function(rf, cb) {
+    var parts = rf.response.origin.split('/');
+    if (!(parts[2] in Post.cat2post)) {
+	return false;
+    }
+    var result = [];
+    var list = Post.cat2post[parts[2]];
+    // hack here, we don't really know that the post referenced by the
+    // id is in core, but well - we do at this point.  Hope I remember
+    // to fix this before it becomes a bug.
+    list.sort(function(a,b) { return Post.id2post[b].date.getTime()-Post.id2post[a].date.getTime(); });
+    var len = list.length;
+    var i;
+    for (i=0; i<len; i++) {
+	Post.get(list[i], function(p) {
+	    result.push(p.format(Post.Format.Synopsis|Post.Format.TitleLink));
+	});
+    }
+    cb(result.join('\n'));
+    return true;
+};
 
 // Local Variables:
 // tab-width: 4
