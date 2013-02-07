@@ -57,3 +57,7 @@ function sendmail(text)
 }
 		      
 
+// Local Variables:
+// tab-width: 4
+// indent-tabs-mode: nil
+// End:
