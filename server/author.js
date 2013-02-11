@@ -171,25 +171,24 @@ AuthorLink.prototype.publish = function()
     var article = this.xbuffer.splice(1).join('\n');
     var words = this.xbuffer[0].split(/[ \t]+/);
     if (words.length != 2) {
-	this.write('need filename');
-	return;
+	    this.write('need filename');
+	    return;
     }
     var fname = words[1];
     console.log('publishing\n%s\n', article);
     var me = this;
     try {
-	fs.stat(articleBase+fname, function(err, stats) {
-	    if (!err) {
-		me.write('filename '+fname+' already exists');
-		return;
-	    }
-	    fs.writeFile(articleBase+fname, article, 'utf8', function(err) {
-		if (err) throw err;
-		me.write('published '+fname);
+	    fs.stat(articleBase+fname, function(err, stats) {
+	        if (!err) {
+		        me.write('filename '+fname+' already exists');
+	        }
+	        fs.writeFile(articleBase+fname, article, 'utf8', function(err) {
+		        if (err) throw err;
+		        me.write('published '+fname);
+	        });
 	    });
-	});
     } catch (err) {
-	me.write('publish of '+fname+' failed: '+err);
+	    me.write('publish of '+fname+' failed: '+err);
     }
 };
 
