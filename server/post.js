@@ -9,14 +9,17 @@ converter = new pagedown.Converter();
 function Post(fname)
 {
     this.id = Post.id++;
-    Post.id2post[this.id] = this;
     this.name = fname;
-    Post.all[fname] = this;
     Util.info("Creating post from "+fname);
     var me = this;
     FileServer.get(Post.basepath+fname, 
 		   function(ok, content, ct) { 
-		       me.parse(ok, content); });
+		       ok = me.parse(ok, content); 
+		       if (ok) {
+			   Post.id2post[me.id] = me;
+			   Post.all[fname] = me;
+		       }
+		   });
     Post.sorted = [];
 }
 
@@ -254,9 +257,18 @@ Post.prototype.cleanupCategories = function()
     }
 };
 
+/**
+ * parse
+ * true if parse is good enough, false otherwise
+ *
+ * @private
+ * @param {boolean} ok
+ * @param {!string} content
+ * @return {boolean}
+ **/
 Post.prototype.parse = function(ok, content)  
 {
-    if (!ok) return;
+    if (!ok) return false;
     
     // process header information and grab body
     var header;
@@ -265,7 +277,7 @@ Post.prototype.parse = function(ok, content)
     if (text == null) {
 	Util.info('Failed to parse out header from '+content);
 	//Util.exit(0);
-	return;
+	return false;
     }
     header = text[1];
     //console.log('header = [%s] From: [%s]', header, content);
@@ -304,7 +316,6 @@ Post.prototype.parse = function(ok, content)
     }
     this.url = url;
     Post.url2post[url] = this;
-    Util.info("Loading "+this.title+" from "+this.name);
     //console.log('[%s] -> [%s] %s', orig, url, this.title);
 
     // do some processing on body
@@ -373,19 +384,21 @@ Post.prototype.parse = function(ok, content)
 		body.push('\n');
 	    } else {
 		body.push(original[i]);	
-	synopsis.push(original[i]);
+		synopsis.push(original[i]);
 	    }
 	    i++;
 	}
     }
     this.body = body.join('\n');
-    if (synopsis.length > 7) synopsis.slice(7, synopsis.length-7);
+    if (synopsis.length > 6) synopsis.splice(6, synopsis.length-6);
+    Util.info("Loading "+this.title+" from "+this.name+" syn:"+synopsis.length);
     this.synopsis = synopsis.join('\n');
     if (1) {
 	// finally, run through markdown processor
 	this.body = converter.makeHtml(this.body);
 	this.synopsis = converter.makeHtml(this.synopsis);
     }
+    return true;
 };
 
 /**
