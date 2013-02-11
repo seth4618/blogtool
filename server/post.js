@@ -25,6 +25,11 @@ function Post(fname)
 
 /** @typedef {number} */ Post.ID;
 
+Post.defaultSkipCategories = {
+    'Personal': 1,
+    'Flashgroup': 1
+};
+
 /**
  * @enum {number}
  * @const
@@ -60,6 +65,16 @@ Post.url2post = {};
 /** @type {!string} */ Post.prototype.synopsis;
 
 /**
+ * init
+ * stuff to do before we start the server
+ *
+ **/
+Post.init = function()
+{
+    if (Config.hasInfoOn('skipcat')) Post.defaultSkipCategories = Config.get('skipcat');
+};
+
+/**
  * formatPost
  * format a post for the specific request
  *
@@ -81,7 +96,10 @@ Post.formatCats = function()
 {
     var ret = ['<ul>' ];
     var names = [];
-    for (name in Post.cat2post) names.push(name);
+    for (name in Post.cat2post) {
+	if ((name in Post.defaultSkipCategories)&&(Post.defaultSkipCategories[name] == 1)) continue;
+	names.push(name);
+    }
     names.sort();
     var len = names.length;
     var i;
@@ -443,10 +461,12 @@ Post.prototype.remove = function()
  *
  * @private
  * @param {number} modifiers
- * @return {!String}
+ * @param {Object.<!string,number>} skipcats
+ * @return {!string}
  **/
-Post.prototype.format = function(modifiers)
+Post.prototype.format = function(modifiers, skipcats)
 {
+    skipcats = skipcats || Post.defaultSkipCategories;
     var cats = [ '' ];
     if (this.categories.length > 0) {
 	cats = [];
@@ -454,7 +474,9 @@ Post.prototype.format = function(modifiers)
 	var len = this.categories.length;
 	var comma = '[';
 	for (i=0; i<len; i++) {
-	    cats.push([ comma, '<a class="catlink" href="/cat/',this.categories[i],'">', this.categories[i],'</a>'].join(''));
+	    var cat = this.categories[i];
+	    if ((cat in skipcats)&&(skipcats[cat] == 1)) return ''; // don't show this post
+	    cats.push([ comma, '<a class="catlink" href="/cat/',cat,'">', cat,'</a>'].join(''));
 	    comma = ",";
 	}
 	cats.push(']');
