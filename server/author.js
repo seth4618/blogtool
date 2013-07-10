@@ -10,10 +10,11 @@ Config.require(['authortcpport', 'users', 'entrypath']);
 
 var TCPPORT = Config.getNumber('authortcpport');
 var articleBase = Config.getString('entrypath');
+var articleBackupPath = Config.getString('entrybackuppath');
 var users = Config.get('users');
 
 var maxBufferLines = 1000;
-var verbose = true;
+var verbose = false;
 
 /** @type {function (new:TCPServer, !string, number):?} */
 TCPServer = require('simpletcp').server();
@@ -92,7 +93,6 @@ AuthorLink.prototype.lineReceived = function(str)
 	    } else {
 	        // starting a new command
 	        var words = str.split(/[ \t]+/);
-            console.log('words: %j (%s) in %s -> %s', words, words[0], util.inspect(AuthorLink.commands), (words[0] in AuthorLink.commands)?"YES":"NO");
 	        if (!(words[0] in AuthorLink.commands)) {
 		        this.write('Unknown command '+words[0]);
 		        this.xbuffer = [];
@@ -162,19 +162,19 @@ AuthorLink.prototype.nop = function()
 
 function findBackup(name, num, cb)
 {
-    fs.stat(name+"."+num, function(err, stats) {
+    fs.stat(articleBackupPath+name+"."+num, function(err, stats) {
 	    if (!err) {
             return findBackup(name, num+1, cb);
         }
-        cb(name+"."+num);
+        cb(articleBackupPath+name+"."+num);
     });
 }
 
-AuthorLink.prototype.mv2backup = function(name, cb)
+AuthorLink.prototype.mv2backup = function(path, name, cb)
 {
     var me = this;
     findBackup(name, 0, function(newname) {
-        fs.rename(name, newname, function(err) {
+        fs.rename(path+name, newname, function(err) {
             if (err) {
                 me.write('error renaming old file:'+fname+': '+err);
                 throw err;
@@ -198,6 +198,7 @@ AuthorLink.prototype.publish = function()
     var me = this;
     var writeFile = function() {
         try {
+            console.log('Writing: %s', pname);
 	        fs.writeFile(pname, article, 'utf8', function(err) {
 		        if (err) throw err;
 		        me.write('published '+fname);
@@ -211,7 +212,7 @@ AuthorLink.prototype.publish = function()
 	    fs.stat(pname, function(err, stats) {
 	        if (!err) {
 		        me.write('filename '+fname+' already exists');
-                me.mv2backup(pname, function() {
+                me.mv2backup(articleBase, fname, function() {
                     writeFile();
                 });
 	        } else {
