@@ -13,23 +13,13 @@ var articleBase = Config.getString('entrypath');
 var users = Config.get('users');
 
 var maxBufferLines = 1000;
-var verbose = false;
+var verbose = true;
 
 /** @type {function (new:TCPServer, !string, number):?} */
 TCPServer = require('simpletcp').server();
 
 /** @type {function (new:LineConnection, !TCPServer, !SocketConnection):?} */
 LineConnection = require('simpletcp').LineConnection();
-
-function startUp()
-{
-    var tcpserver = new TCPServer('author', TCPPORT, AuthorLink);
-    tcpserver.setVerbose(verbose);
-    tcpserver.on('listen', function() {  Util.info("author Server tcp started on port:"+TCPPORT); });
-    tcpserver.on('connection', function(conn) { conn.start(); });
-    tcpserver.on('error', function(err) { console.log('Trying to start server Got error: '+err); server.destroy(); });
-    tcpserver.start();
-}
 
 /**
  * AuthorLink
@@ -50,11 +40,14 @@ function AuthorLink(server, socket)
     this.usable = 0;
     this.on('data', function(obj) { me.onLineReceived(obj); });
 }
+function foo() {
+    console.log('hellow world');
+}
 Util.inherits(AuthorLink, LineConnection);
 
 /** @type {!string} */ AuthorLink.prototype.username;
 
-AuthorLink.commands = {};
+AuthorLink.commands = {"nothing": 1};
 
 AuthorLink.prototype.makeNonce = function()
 {
@@ -85,39 +78,40 @@ AuthorLink.prototype.start = function()
  **/
 AuthorLink.prototype.lineReceived = function(str)
 {
-    if (verbose) console.log('[%s]', str);
+    if (verbose) console.log('AL[%s]', str);
 
     if (/^x/.test(str)) {
-	// continuation
-	this.xbuffer.push(str.substr(1));
+	    // continuation
+	    this.xbuffer.push(str.substr(1));
     } else {
-	str = str.replace(/^[ \t]+/, "");
-	str = str.replace(/[ \t\r\n]+$/, "");
-	if (str == "") {
-	    // done with previous command, if any
-	    this.execute();
-	} else {
-	    // starting a new command
-	    var words = str.split(/[ \t]+/);
-	    if (!(words[0] in AuthorLink.commands)) {
-		this.write('Unknown command '+words[0]);
-		this.xbuffer = [];
-		this.cmd = "nop";
-		return;
+	    str = str.replace(/^[ \t]+/, "");
+	    str = str.replace(/[ \t\r\n]+$/, "");
+	    if (str == "") {
+	        // done with previous command, if any
+	        this.execute();
+	    } else {
+	        // starting a new command
+	        var words = str.split(/[ \t]+/);
+            console.log('words: %j (%s) in %s -> %s', words, words[0], util.inspect(AuthorLink.commands), (words[0] in AuthorLink.commands)?"YES":"NO");
+	        if (!(words[0] in AuthorLink.commands)) {
+		        this.write('Unknown command '+words[0]);
+		        this.xbuffer = [];
+		        this.cmd = "nop";
+		        return;
+	        }
+	        this.xbuffer = [str];
+	        this.cmd = words[0];
 	    }
-	    this.xbuffer = [str];
-	    this.cmd = words[0];
-	}
     }
     // some basic throttles on memory usage
     if ((this.usable == 0)&&(this.xbuffer.length > 10)) {
-	// this is a user without a valid password yet and they already have 10 lines queued up, kill them
-	this.destroy();
+	    // this is a user without a valid password yet and they already have 10 lines queued up, kill them
+	    this.destroy();
     } else if (this.xbuffer.length > maxBufferLines) {
-	// tell user they exceeded line length, reset, and make them unusable.
-	this.write('exceed maximum buffer size: need to login in again');
-	this.xbuffer = [];
-	this.xbuffer.usable = 0;
+	    // tell user they exceeded line length, reset, and make them unusable.
+	    this.write('exceed maximum buffer size: need to login in again');
+	    this.xbuffer = [];
+	    this.xbuffer.usable = 0;
     }
 };
 
@@ -125,9 +119,9 @@ AuthorLink.prototype.execute = function()
 {
     console.log('About to execute [%s]', this.cmd);
     if ((this.usable != 0)||(this.cmd == 'login'))
-	AuthorLink.commands[this.cmd].call(this);
+	    AuthorLink.commands[this.cmd].call(this);
     else 
-	this.write('Server is unusable til you login');
+	    this.write('Server is unusable til you login');
     this.xbuffer = [];
     this.cmd = 'nop';
 };
@@ -142,20 +136,20 @@ AuthorLink.prototype.login = function()
 {
     var words = this.xbuffer[0].split(/[ \t]+/);
     if (words.length != 3) {
-	this.write('bad login ['+this.xbuffer[0]+']');
-	return;
+	    this.write('bad login ['+this.xbuffer[0]+']');
+	    return;
     }
     this.username = words[1];
     if (!(this.username in users)) {
-	this.write('bad user ['+this.xbuffer[0]+']');
-	return;
+	    this.write('bad user ['+this.xbuffer[0]+']');
+	    return;
     }
     var hash = crypto.createHash('md5').update(this.nonce+users[this.username]).digest("hex");
     var passwd = words[2];
     console.log('%s -> %s =?= %s', this.nonce+users[this.username], hash, passwd);
     if (hash != passwd) {
-	this.write('very bad login ['+this.xbuffer[0]+']');
-	return;
+	    this.write('very bad login ['+this.xbuffer[0]+']');
+	    return;
     }
     this.usable = 1;
     this.write(this.username+" is logged in.");
@@ -164,6 +158,30 @@ AuthorLink.prototype.login = function()
 AuthorLink.prototype.nop = function()
 {
     this.write('ok');
+};
+
+function findBackup(name, num, cb)
+{
+    fs.stat(name+"."+num, function(err, stats) {
+	    if (!err) {
+            return findBackup(name, num+1, cb);
+        }
+        cb(name+"."+num);
+    });
+}
+
+AuthorLink.prototype.mv2backup = function(name, cb)
+{
+    var me = this;
+    findBackup(name, 0, function(newname) {
+        fs.rename(name, newname, function(err) {
+            if (err) {
+                me.write('error renaming old file:'+fname+': '+err);
+                throw err;
+            }
+            cb();
+        });
+    });
 };
 
 AuthorLink.prototype.publish = function()
@@ -175,25 +193,49 @@ AuthorLink.prototype.publish = function()
 	    return;
     }
     var fname = words[1];
+    var pname = articleBase+fname;
     console.log('publishing\n%s\n', article);
     var me = this;
-    try {
-	    fs.stat(articleBase+fname, function(err, stats) {
-	        if (!err) {
-		        me.write('filename '+fname+' already exists');
-	        }
-	        fs.writeFile(articleBase+fname, article, 'utf8', function(err) {
+    var writeFile = function() {
+        try {
+	        fs.writeFile(pname, article, 'utf8', function(err) {
 		        if (err) throw err;
 		        me.write('published '+fname);
 	        });
+        } catch (err) {
+	        me.write('publish of '+fname+' failed: '+err);
+        }
+    };
+
+    try {
+	    fs.stat(pname, function(err, stats) {
+	        if (!err) {
+		        me.write('filename '+fname+' already exists');
+                me.mv2backup(pname, function() {
+                    writeFile();
+                });
+	        } else {
+                // file doesn't exist, just write it out
+                writeFile();
+            }
 	    });
     } catch (err) {
 	    me.write('publish of '+fname+' failed: '+err);
     }
 };
 
+function startUp()
+{
+    var tcpserver = new TCPServer('author', TCPPORT, AuthorLink);
+    tcpserver.setVerbose(verbose);
+    tcpserver.on('listen', function() {  Util.info("author Server tcp started on port:"+TCPPORT); });
+    tcpserver.on('connection', function(conn) { conn.start(); });
+    tcpserver.on('error', function(err) { console.log('Trying to start server Got error: '+err); server.destroy(); });
+    tcpserver.start();
+}
+
 AuthorLink.commands['login'] = AuthorLink.prototype.login;
-AuthorLink.commands['nop'] = AuthorLink.prototype.doNothing;
+AuthorLink.commands['nop'] = AuthorLink.prototype.nop;
 AuthorLink.commands['publish'] = AuthorLink.prototype.publish;
 
 startUp();
