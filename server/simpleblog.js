@@ -6,10 +6,18 @@ FileServer = require("./file.js");
 var server;
 Config = require('./config.js');
 Config.init('../data/config.txt');
-Config.require(['gacode', 'basepath']);
+Config.require(['gacode', 'basepath', 'cookie', 'hostname']);
 BASEPATH = Config.getString('basepath');
+BaseCookie = Config.getString('cookie');
+Hostname = Config.getString('hostname');
 Synchronizer = require("./sync.js");
 Post = require('./post.js');
+dbo = require('./dbo.js');
+DBServer = dbo.DBServer;
+MongoDB = dbo.MongoDB;
+DatabaseBackedObject = dbo.DatabaseBackedObject;
+User = require('./user.js');
+Cookies = (/** @type {function(new:Cookies, http.ServerRequest, http.ServerResponse)} */ require( "cookies" ));
 
 var analyticsCode;
 
@@ -44,6 +52,7 @@ try {
  * @param {!http.ServerResponse} response
  **/
 function onRequest(request, response) {
+    var cookies = new Cookies(request, response);
     var reqdata = url.parse(request.url, true);
     var pathname = reqdata.pathname;
     var jsonp;
@@ -53,7 +62,6 @@ function onRequest(request, response) {
     } else {
         jsonp = reqdata.query.callback;
     }
-    var cookies;
 
     try{
         var responder = new Responder(response, jsonp, pathname, cookies);
@@ -184,6 +192,32 @@ Responder.prototype.err404 = function(msg){
     this.response.write(msg ? '' : msg);
     this.response.end();
     this.done();
+};
+
+/**
+ * returnJSON
+ * return a json object with result
+ *
+ * @param {*} data
+ * @param {number=} status
+ * @param {string=} msg
+ **/
+Responder.prototype.returnJSON = function(data, status, msg)
+{
+	msg = msg || "ok";
+	status = status || 0;
+    var payload = {'status': status,
+		   'msg': msg,
+		   'data': data };
+    var pstring = JSON.stringify(payload);
+    var ctname = 'application/json';
+    if (this.jsonPname != '') {
+        pstring = this.jsonPname + '(' + pstring + ')';
+        ctname = 'application/javascript';
+    }
+    this.response.writeHead(200, {'Content-Type': ctname});
+    this.response.end(pstring);
+	this.done();
 };
 
 /**
@@ -318,19 +352,26 @@ Router.route = function(pathname, response, request)
 // get routes loaded
 Router.init();
 
-// Don't start listening til we have defined routes
-try {
-    server.listen(port, function () { 
-        Util.info("Listening called on listen to "+port);
-    });
-} catch (err) {
-    if (err.code == "EADDRINUSE") {
-        Util.error("Can't start server on port = "+port);
-    } else {
-        Util.error("tried to start port and failed: "+err);
+// open up db and then start server (routes already loaded, so it is ok)
+
+db = new MongoDB(new DBServer('localhost'), 'blog');
+db.setSafety(true);
+db.open(function() {
+    console.log('db is open');
+    try {
+        server.listen(port, function () { 
+            Util.info("Listening called on listen to "+port);
+        });
+    } catch (err) {
+        if (err.code == "EADDRINUSE") {
+            Util.error("Can't start server on port = "+port);
+        } else {
+            Util.error("tried to start port and failed: "+err);
+        }
+        Util.exit(-1);
     }
-    Util.exit(-1);
-}
+});
+
 
 // Local Variables:
 // tab-width: 4
