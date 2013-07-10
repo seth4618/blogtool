@@ -7,6 +7,7 @@
    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.8/jquery.min.js"></script>
    <script type="text/javascript" src="/d0/js/jquery.dotdotdot.js"></script>
    <script src="d0/sjs/index.js"></script>
+   <script src="d0/sjs/ajax.js"></script>
 </head>
 <body>
 <div id="pagetitle">Seth's blog</div>
