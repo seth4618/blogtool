@@ -12,10 +12,22 @@ function doCat(pathname, response, cb)
     cb(null);
 }
 
+var actions = {
+    'login': User.login,
+    'newuser': User.makeUser
+};
+
+
 function doAction(pathname, response, cb)
 {
-    Util.error('Not implemented yet');
-    response.err(404, "no req handler for "+pathname);
+    var args = pathname.split('/');
+    args.splice(0,2);
+    console.log('doAction: %j', args);
+    if (args[0] in actions) {
+        actions[args[0]](response, args);
+    } else {
+        response.err(404, "no req handler for "+pathname);
+    }
     cb(null);
 }
 
