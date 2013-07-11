@@ -293,9 +293,9 @@ Post.prototype.parse = function(ok, content)
     var text;
     text = content.match(/^(Date.*\nTitle:.*\nCategories:.*)\n+([^]*)$/m);
     if (text == null) {
-	Util.info('Failed to parse out header from '+content);
-	//Util.exit(0);
-	return false;
+	    Util.info('Failed to parse out header from '+content);
+	    //Util.exit(0);
+	    return false;
     }
     header = text[1];
     //console.log('header = [%s] From: [%s]', header, content);
@@ -310,27 +310,27 @@ Post.prototype.parse = function(ok, content)
     this.categories = text[1].split(/ *, */);
     this.cleanupCategories();
     if (/^ *$/.test(this.title)) {
-	this.title = "Another Post for "+this.categories.join(',');
-	url = this.title;
+	    this.title = "Another Post for "+this.categories.join(',');
+	    url = this.title;
     }
     // clean up title so it can be used as part of a file path
     var orig = url;
     url = url.replace(/[\]\[!@#$%^&*():;'"><?\/\\`~{}|., ]/g, "-").toLowerCase();
     // create full url from date and title
     url = [ '/post',
-	    this.date.getFullYear(),
-	    1+this.date.getMonth(),
-	    this.date.getDate(),
-	    url,
-	  ].join('/');
+	        this.date.getFullYear(),
+	        1+this.date.getMonth(),
+	        this.date.getDate(),
+	        url,
+	      ].join('/');
     // make sure url is unique
     if (url in Post.url2post) {
-	var pieces = [url, 1];
-	url = pieces.join('-');
-	while (url in Post.url2post) {
-	    pieces[1] += 1;
+	    var pieces = [url, 1];
 	    url = pieces.join('-');
-	}
+	    while (url in Post.url2post) {
+	        pieces[1] += 1;
+	        url = pieces.join('-');
+	    }
     }
     this.url = url;
     Post.url2post[url] = this;
@@ -346,75 +346,75 @@ Post.prototype.parse = function(ok, content)
     var i = 0;
 
     if (0) {
-	// first, any seq of indented lines becomes code
-	while (i<len) {
-	    // skip repeated blank only lines
-	    while ( (/^[ \t]*$/.test(original[i])) &&
-		    (i < last) &&
-		    (/^[ \t]*$/.test(original[i+1]))) i = i+1;
+	    // first, any seq of indented lines becomes code
+	    while (i<len) {
+	        // skip repeated blank only lines
+	        while ( (/^[ \t]*$/.test(original[i])) &&
+		            (i < last) &&
+		            (/^[ \t]*$/.test(original[i+1]))) i = i+1;
 
-	    if (/^[ \t]*$/.test(original[i])) {
-		if ((i<last) && /^[ \t]/.test(original[i+1])) {
-		    // start of code block
-		    synopsis.push('<tt>read post for code</tt>');
-		    body.push('<p><pre>\n');
-		    i++;
-		    while ((i<len) && !/^[^ \t\n]/.test(original[i])) {
-			body.push(original[i]);
-			i++;
-		    }
-		    body.push('</pre>\n<p>\n');
-		    i--;
-		} else {
-		    body.push('\n<p>\n');
-		}
-	    } else if (/^\'\'\'[ \t]*/.test(original[i])) {
-		// new style code blocks surrounded by ''' at start of line
-		synopsis.push('<tt>read post for code</tt>');
-		body.push('<p><pre>\n');
-		i++;		// skip opening '''
-		while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
-		    body.push(original[i]);
-		    i++;
-		}
-		body.push('</pre>\n<p>\n');
-	    } else {
-		body.push(original[i]);
-		synopsis.push(original[i]);
+	        if (/^[ \t]*$/.test(original[i])) {
+		        if ((i<last) && /^[ \t]/.test(original[i+1])) {
+		            // start of code block
+		            synopsis.push('<tt>read post for code</tt>');
+		            body.push('<p><pre>\n');
+		            i++;
+		            while ((i<len) && !/^[^ \t\n]/.test(original[i])) {
+			            body.push(original[i]);
+			            i++;
+		            }
+		            body.push('</pre>\n<p>\n');
+		            i--;
+		        } else {
+		            body.push('\n<p>\n');
+		        }
+	        } else if (/^\'\'\'[ \t]*/.test(original[i])) {
+		        // new style code blocks surrounded by ''' at start of line
+		        synopsis.push('<tt>read post for code</tt>');
+		        body.push('<p><pre>\n');
+		        i++;		// skip opening '''
+		        while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
+		            body.push(original[i]);
+		            i++;
+		        }
+		        body.push('</pre>\n<p>\n');
+	        } else {
+		        body.push(original[i]);
+		        synopsis.push(original[i]);
+	        }
+	        i++;
 	    }
-	    i++;
-	}
     } else {
-	// lets try out using markdown with the pagedown module implementation
-	while (i<len) {
-	    // skip repeated blank only lines
-	    while ( (/^[ \t]*$/.test(original[i])) &&
-		    (i < last) &&
-		    (/^[ \t]*$/.test(original[i+1]))) i = i+1;
-	    if (/^\'\'\'[ \t]*/.test(original[i])) {
-		synopsis.push('`read post for code`');
-		body.push('\n');
-		i++;		// skip opening '''
-		while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
-		    body.push('    '+original[i]); // so markdown will turn it into code
-		    i++;
-		}
-		body.push('\n');
-	    } else {
-		body.push(original[i]);	
-		synopsis.push(original[i]);
+	    // lets try out using markdown with the pagedown module implementation
+	    while (i<len) {
+	        // skip repeated blank only lines
+	        while ( (/^[ \t]*$/.test(original[i])) &&
+		            (i < last) &&
+		            (/^[ \t]*$/.test(original[i+1]))) i = i+1;
+	        if (/^\'\'\'[ \t]*/.test(original[i])) {
+		        synopsis.push('`read post for code`');
+		        body.push('\n');
+		        i++;		// skip opening '''
+		        while ((i<len) && !/^\'\'\'[ \t]*/.test(original[i])) {
+		            body.push('    '+original[i]); // so markdown will turn it into code
+		            i++;
+		        }
+		        body.push('\n');
+	        } else {
+		        body.push(original[i]);	
+		        synopsis.push(original[i]);
+	        }
+	        i++;
 	    }
-	    i++;
-	}
     }
     this.body = body.join('\n');
     if (synopsis.length > 6) synopsis.splice(6, synopsis.length-6);
     Util.info("Loading "+this.title+" from "+this.name+" syn:"+synopsis.length);
     this.synopsis = synopsis.join('\n');
     if (1) {
-	// finally, run through markdown processor
-	this.body = converter.makeHtml(this.body);
-	this.synopsis = converter.makeHtml(this.synopsis);
+	    // finally, run through markdown processor
+	    this.body = converter.makeHtml(this.body);
+	    this.synopsis = converter.makeHtml(this.synopsis);
     }
     return true;
 };
@@ -469,57 +469,57 @@ Post.prototype.format = function(modifiers, skipcats)
     skipcats = skipcats || Post.defaultSkipCategories;
     var cats = [ '' ];
     if (this.categories.length > 0) {
-	cats = [];
-	var i;
-	var len = this.categories.length;
-	var comma = '[';
-	for (i=0; i<len; i++) {
-	    var cat = this.categories[i];
-	    if ((cat in skipcats)&&(skipcats[cat] == 1)) return ''; // don't show this post
-	    cats.push([ comma, '<a class="catlink" href="/cat/',cat,'">', cat,'</a>'].join(''));
-	    comma = ",";
-	}
-	cats.push(']');
-	cats = cats.join('');
+	    cats = [];
+	    var i;
+	    var len = this.categories.length;
+	    var comma = '[';
+	    for (i=0; i<len; i++) {
+	        var cat = this.categories[i];
+	        if ((cat in skipcats)&&(skipcats[cat] == 1)) return ''; // don't show this post
+	        cats.push([ comma, '<a class="catlink" href="/cat/',cat,'">', cat,'</a>'].join(''));
+	        comma = ",";
+	    }
+	    cats.push(']');
+	    cats = cats.join('');
     }
     var date = [1+this.date.getMonth(), '/', 
-		this.date.getDate(), '/',
-		this.date.getFullYear()-2000, ' ',
-		this.date.getHours() % 12, ':',
-		this.date.getMinutes() < 10 ? ('0'+this.date.getMinutes()) : this.date.getMinutes(), 
-		(this.date.getHours() > 12) ? 'pm' : 'am'].join('');
+		        this.date.getDate(), '/',
+		        this.date.getFullYear()-2000, ' ',
+		        this.date.getHours() % 12, ':',
+		        this.date.getMinutes() < 10 ? ('0'+this.date.getMinutes()) : this.date.getMinutes(), 
+		        (this.date.getHours() > 12) ? 'pm' : 'am'].join('');
 
     var title = this.title;
     if (modifiers&Post.Format.TitleLink) {
-	title = ['<a class="titlelink" href="',
-		 this.url,
-		 '">',
-		 title,
-		 '</a>'].join('');
+	    title = ['<a class="titlelink" href="',
+		         this.url,
+		         '">',
+		         title,
+		         '</a>'].join('');
     }
     // if synopsis, limit to 256 characters
     var body, bodydiv;
     if (modifiers&Post.Format.Synopsis) {
-	body = this.synopsis+'<a class="read-more" href="'+this.url+'">Read more &raquo;</a>';
-	bodydiv = '<div class="post-synopsis">';
+	    body = this.synopsis+'<a class="read-more" href="'+this.url+'">Read more &raquo;</a>';
+	    bodydiv = '<div class="post-synopsis">';
     } else {
-	body = this.body;
-	bodydiv = '<div class="post-content">';
+	    body = this.body;
+	    bodydiv = '<div class="post-content">';
     }
     var info = ['<div class="post">\n',
-		'<div class="post-title">',
-		title,
-		'</div>',
-		'<div class="post-date">',
-		date,
-		'</div>',
-		'<div class="post-cat">',
-		cats,
-		'</div>',
-		bodydiv,
-		body,
-		'</div>',
-	       '</div>'];
+		        '<div class="post-title">',
+		        title,
+		        '</div>',
+		        '<div class="post-date">',
+		        date,
+		        '</div>',
+		        '<div class="post-cat">',
+		        cats,
+		        '</div>',
+		        bodydiv,
+		        body,
+		        '</div>',
+	            '</div>'];
     return info.join('\n');
 };
 
@@ -547,7 +547,7 @@ Post.startWatchdog();
 Post.formatAllInCat = function(rf, cb) {
     var parts = rf.response.origin.split('/');
     if (!(parts[2] in Post.cat2post)) {
-	return false;
+	    return false;
     }
     var result = [];
     var list = Post.cat2post[parts[2]];
@@ -558,9 +558,9 @@ Post.formatAllInCat = function(rf, cb) {
     var len = list.length;
     var i;
     for (i=0; i<len; i++) {
-	Post.get(list[i], function(p) {
-	    result.push(p.format(Post.Format.Synopsis|Post.Format.TitleLink));
-	});
+	    Post.get(list[i], function(p) {
+	        result.push(p.format(Post.Format.Synopsis|Post.Format.TitleLink));
+	    });
     }
     cb(result.join('\n'));
     return true;
