@@ -10,16 +10,21 @@ function Post(fname)
 {
     this.id = Post.id++;
     this.name = fname;
+    this.lastupdate = null;
     Util.info("Creating post from "+fname);
     var me = this;
     FileServer.get(Post.basepath+fname, 
-		   function(ok, content, ct) { 
-		       ok = me.parse(ok, content); 
-		       if (ok) {
-			   Post.id2post[me.id] = me;
-			   Post.all[fname] = me;
-		       }
-		   });
+		           function(ok, content, ct) { 
+		               ok = me.parse(ok, content); 
+		               if (ok) {
+			               Post.id2post[me.id] = me;
+			               Post.all[fname] = me;
+		               }
+		           });
+    fs.stat(Post.basepath+fname, function(err, stat) {
+        if (err) return;
+        me.lastupdate = stat.mtime;
+    });
     Post.sorted = [];
 }
 
@@ -85,7 +90,7 @@ Post.init = function()
 Post.formatPost = function(rf, cb) {
     var url = rf.response.origin.toLowerCase();
     if (!(url in Post.url2post)) {
-	return false;
+	    return false;
     }
     var str = Post.url2post[url].format(Post.Format.Default);
     cb(str);
@@ -482,13 +487,7 @@ Post.prototype.format = function(modifiers, skipcats)
 	    cats.push(']');
 	    cats = cats.join('');
     }
-    var date = [1+this.date.getMonth(), '/', 
-		        this.date.getDate(), '/',
-		        this.date.getFullYear()-2000, ' ',
-		        this.date.getHours() % 12, ':',
-		        this.date.getMinutes() < 10 ? ('0'+this.date.getMinutes()) : this.date.getMinutes(), 
-		        (this.date.getHours() > 12) ? 'pm' : 'am'].join('');
-
+    var date = Util.date2str(this.date);
     var title = this.title;
     if (modifiers&Post.Format.TitleLink) {
 	    title = ['<a class="titlelink" href="',
@@ -499,12 +498,15 @@ Post.prototype.format = function(modifiers, skipcats)
     }
     // if synopsis, limit to 256 characters
     var body, bodydiv;
+    var updated = '';
     if (modifiers&Post.Format.Synopsis) {
 	    body = this.synopsis+'<a class="read-more" href="'+this.url+'">Read more &raquo;</a>';
 	    bodydiv = '<div class="post-synopsis">';
     } else {
 	    body = this.body;
 	    bodydiv = '<div class="post-content">';
+        if (this.lastupdate)
+            updated = '<div class="post-update">Last Updated:'+Util.date2str(this.lastupdate)+'</div>';
     }
     var info = ['<div class="post">\n',
 		        '<div class="post-title">',
@@ -519,6 +521,7 @@ Post.prototype.format = function(modifiers, skipcats)
 		        bodydiv,
 		        body,
 		        '</div>',
+                updated,
 	            '</div>'];
     return info.join('\n');
 };
