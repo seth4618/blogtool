@@ -202,6 +202,24 @@ Util.countObjKeys = function(obj){
     return count;
 };
 
+/**
+ * date2str
+ * format a date into a string
+ *
+ * @param {?Date} date
+ * @return {!string}
+ **/
+Util.date2str = function(date)
+{
+    if (date == null) return '';
+    return [1+date.getMonth(), '/', 
+		        date.getDate(), '/',
+		        date.getFullYear()-2000, ' ',
+		        date.getHours() % 12, ':',
+		        date.getMinutes() < 10 ? ('0'+date.getMinutes()) : date.getMinutes(), 
+		        (date.getHours() > 12) ? 'pm' : 'am'].join('');
+}
+
 module.exports = Util;
 
 // Local Variables:
