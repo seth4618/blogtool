@@ -59,6 +59,13 @@ body {
 .post-content {
 }
 
+.post-update {
+    display: inline;
+    padding-top: 4ex;
+    color: #3A00AE;
+    font-size: 75%;
+}
+
 .post-synopsis {
     line-height: 1.2em;
     max-height: 4.8em;
