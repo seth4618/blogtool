@@ -112,3 +112,4 @@
 (autoload 'markdown-mode "markdown-mode"
    "Major mode for editing Markdown files" t)
 (add-to-list 'auto-mode-alist '("\\.text\\'" . markdown-mode))
+;(insert (md5 (concat "WWWRGVMLRXNAEXWF" "myblog") nil nil 'utf-8))9f6d5f1f70a97c6a1b212878b63ba428
